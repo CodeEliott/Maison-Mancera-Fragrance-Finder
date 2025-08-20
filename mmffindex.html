@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maison Mancera Fragrance Finder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .quiz-container {
+            transition: opacity 0.5s ease-in-out;
+        }
+        .result-card {
+            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+        }
+        .result-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .progress-bar-inner {
+            transition: width 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-xl p-6 md:p-8">
+        
+        <div id="quiz-container" class="quiz-container">
+            <h1 class="text-3xl font-bold text-center mb-2 text-gray-900">Find Your Perfect Mancera</h1>
+            <p class="text-center text-gray-500 mb-6">Answer 5 questions to discover your signature scent.</p>
+
+            <!-- Progress Bar -->
+            <div class="w-full bg-gray-200 rounded-full h-2.5 mb-6">
+                <div id="progress-bar" class="bg-indigo-600 h-2.5 rounded-full progress-bar-inner" style="width: 0%"></div>
+            </div>
+
+            <div id="question-area">
+                <h2 id="question-title" class="text-xl font-semibold mb-4 text-center"></h2>
+                <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Options will be injected here -->
+                </div>
+            </div>
+        </div>
+
+        <div id="results-container" class="hidden">
+            <h1 class="text-3xl font-bold text-center mb-2 text-gray-900">Your Fragrance Matches!</h1>
+            <p class="text-center text-gray-500 mb-8">Based on your answers, we think you'll love these:</p>
+            <div id="results" class="space-y-6">
+                <!-- Results will be injected here -->
+            </div>
+            <div class="text-center mt-8">
+                <button onclick="restartQuiz()" class="bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-indigo-700 transition-colors">
+                    Take the Quiz Again
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- DATABASE ---
+        // The CSV data is parsed and stored here as a JavaScript array of objects.
+        const fragranceDataCSV = `Fragrance Name,Description,Key Scent Notes,Collection Name
+Amber & Roses,"A classic and opulent combination of rich amber and sensual rose. This is a warm, elegant, and timeless floral-amber scent.","Sicilian Lemon, Rose, Indian Jasmine, Amber, Labdanum, White Musk",Main Line
+Amber Fever,"A sweet and intoxicating amber fragrance with prominent notes of caramel, whiskey, and rose. It's a rich, boozy, and seductive scent perfect for evening wear.","Caramel, Whiskey, Hazelnut, Rose Petals, Amber, Teak Wood, White Musk",Confidential Collection
+Aoud Absolue Precieux,"A highly concentrated and luxurious oud essence. This is a potent, pure expression of woody and leathery Cambodian oud for the true connoisseur.","Bergamot, Clove, Saffron, Rose, Geranium, Cambodian Oud, Labdanum",Precieux Aouds
+Aoud Blue Notes,"A complex and vibrant fragrance that contrasts fresh citrus and fruity notes with a warm, woody base of oud and amber. It is a unique and captivating fruity-oud composition.","Bergamot, Lemon, Fruity Notes, Ylang-Ylang, Orris, Oud, Leather, Amber",Dark Desires Collection
+Aoud Café,"A stunning and addictive gourmand fragrance that blends the rich aroma of roasted coffee with a smooth oud and amber base. It evokes the feeling of a cozy, high-end café.","Blackcurrant, Peach, Bergamot, Coffee, Amber, Floral Notes, Sweet Notes, Oud",Dark Desires Collection
+Aoud Exclusif,"A rich and spicy oriental fragrance that is both powerful and refined. It combines a complex blend of spices, florals, and a prominent oud note.","Saffron, Cumin, Labdanum, Rose, Violet, Indonesian Patchouli, Oud",Exclusif Aouds
+Aoud Lemon Mint,"A fresh and modern take on oud. This is a vibrant and uplifting fragrance that combines zesty citrus and cool mint with a smooth, woody oud base.","Lemon, Coriander, Black Pepper, Almond, Egyptian Jasmine, Patchouli, Oud",Dark Desires Collection
+Aoud Orchid,"A delicate and creamy floral fragrance. It combines the sweetness of coconut and peach with soft florals and a subtle, clean oud base.","Mandarin, Coconut, Peach, Orchid, Patchouli, Amber, Woody Notes, Vanilla",Dark Desires Collection
+Aoud Sandroses,"A classic rose-oud combination. It's a rich and spicy floral fragrance that balances a beautiful rose note with a powerful, earthy oud.","Saffron, Black Pepper, Rose, Jasmine, Geranium, Patchouli, Sandalwood",Dark Desires Collection
+Aoud Vanille,"A warm and creamy vanilla fragrance with a smoky oud undertone. It's a cozy, sweet, and long-lasting gourmand scent.","Saffron, Black Pepper, Cardamom, Floral Notes, Oud, Vanilla, Sandalwood",Dark Desires Collection
+Aoud Violet,"A unique and elegant floral fragrance. It combines a powdery violet note with fresh citrus, spices, and a clean, woody base.","Bergamot, Green Notes, Spices, Violet, Patchouli, Oud, Vetiver, Amber",Dark Desires Collection
+Black Gold,"A sophisticated and complex fragrance for men. It's a powerful and aromatic scent with a blend of citrus, spices, florals, and a warm, leathery base.","Citrus, Lavender, Cinnamon, Nutmeg, Violet, Jasmine, Rose, Marine Notes",Confidential Collection
+Black Intensive Aoud,"A deep, dark, and resinous oud fragrance. It's a powerful and long-lasting scent with a strong personality, featuring rose, spices, and a woody base.","Peach, Clove, Chili Pepper, Rose, Jasmine, Saffron, Oud, Cedarwood",Dark Desires Collection
+Black Line,"A mysterious and sensual fragrance. It features a prominent rose note blended with spices, leather, and a warm, ambery base.","Spices, Rose, Patchouli, Leather, Amber, White Musk, Sandalwood",Main Line
+Black Prestigium,"A luxurious and powerful fragrance. It combines a beautiful orris note with rose, oud, and a rich, leathery base.","Bergamot, Orris, Spices, Rose, Violet, Oud, Leather, Amber, White Musk",Confidential Collection
+Black to Black,"A very popular and powerful fragrance. It's a rich and complex blend of rose, oud, and leather with a spicy, saffron kick.","Saffron, Bergamot, Clove, Rose, Jasmine, Patchouli, Leather, Amber",Dark Desires Collection
+Blue Aoud,"A fresh and spicy take on oud. It combines bright citrus and tarragon with a warm, woody base of oud, leather, and amber.","Tarragon, Black Pepper, Clove, Bergamot, Rose, Oud, Leather, Amber",Dark Desires Collection
+Blue Melody,"A fresh, fruity, and aromatic fragrance. It's a vibrant and uplifting scent with a blend of citrus, spices, and a warm, woody base.","Lemon, Orange, Grapefruit, Spices, Ylang-Ylang, Jasmine, Cedar, Amber",Confidential Collection
+Cedrat Boise,"A highly popular and versatile fragrance. It's a perfect balance of fresh, fruity citrus and a smooth, woody-leathery base.","Sicilian Lemon, Blackcurrant, Spices, Jasmine, Patchouli, Sandalwood, Cedar",Main Line
+Choco Violette,"A delicious and playful gourmand fragrance. It's a sweet and powdery scent that combines the aromas of chocolate, vanilla, and violet.","Orange, Bergamot, Hazelnut, Dark Chocolate, Violet, Vanilla, White Musk",Main Line
+Coco Vanille,"A sweet and tropical gourmand fragrance. It's a creamy and delicious blend of coconut, vanilla, and white florals.","Coconut, White Peach, Ylang-Ylang, Tiare Flower, Jasmine, Vanilla, White Musk",Main Line
+Crazy for Oud,"A warm, woody, and slightly sweet oud fragrance. It's a smooth and inviting scent that is easy to wear.","Bergamot, Oud, Tiramisu, Rose, Magnolia, Patchouli, Vanilla, Amber",Main Line
+Deep Forest,"A green and earthy fragrance that evokes a walk in a dense forest. It's a complex and aromatic scent with prominent notes of oud, leather, and incense.","Bergamot, Orange, Incense, Clove, Nutmeg, Rose, Violet, Oud, Leather",Confidential Collection
+Gold Aoud,"A bright and sparkling take on oud. It combines zesty citrus and saffron with a classic rose-oud combination.","Bergamot, Mandarin, Saffron, Rose, Jasmine, Patchouli, Oud, Cedarwood",Dark Desires Collection
+Gold Incense,"A rich and resinous incense fragrance. It's a warm and spiritual scent that combines incense with coffee, florals, and a sweet vanilla base.","Incense, Pink Pepper, Mandarin, Coffee, Violet, Jasmine, Rose, Vanilla",Confidential Collection
+Gold Intensive Aoud,"A powerful and luxurious rose-oud fragrance. It's a classic and opulent scent that is perfect for special occasions.","Lemon, Water Notes, Rose, Geranium, Saffron, Teak Wood, Amber, White Musk",Dark Desires Collection
+Gold Prestigium,"A sophisticated and elegant fragrance. It combines a beautiful rose note with oud, leather, and a powdery vanilla finish.","Bergamot, Saffron, Rose, Orange Blossom, Oud, Leather, Vanilla, Oakmoss",Confidential Collection
+Hindu Kush,"A unique and aromatic fragrance inspired by the mountains of Central Asia. It's a spicy and resinous scent with a prominent cannabis note.","Spices, Incense, Labdanum, Cannabis, Woody Notes, Amber, Patchouli",Confidential Collection
+Holidays,"A sunny and tropical fragrance that evokes a beach vacation. It's a sweet and creamy blend of coconut, tiare flower, and vanilla.","Bergamot, Coconut, Tiare Flower, Ylang-Ylang, Marine Notes, Vanilla, Sandalwood",Main Line
+Indian Dream,"A soft and romantic floral fragrance. It's a delicate and elegant scent that combines heliotrope, jasmine, and rose with a warm, woody base.","Heliotrope, Geranium, Orange Blossom, Jasmine, Rose, Amber, Sandalwood",Main Line
+Instant Crush,"A hugely popular and addictive fragrance. It's a sweet and spicy scent with a powerful projection, featuring saffron, rose, amber, and vanilla.","Saffron, Ginger, Bergamot, Mandarin, Rose, Jasmine, Amberwood, Sandalwood",Confidential Collection
+Intense Cedrat Boise,"A more powerful and longer-lasting version of the original. It has a richer, woodier, and leathery character.","Citrus, Blackcurrant, Spices, Leather, Patchouli, Sandalwood, Oakmoss",Main Line
+Jardin Exclusif,"A sweet and juicy fruity-floral fragrance. It's a playful and vibrant scent with a delicious caramel and pear accord.","Caramel, Lemon, Pear, Blackcurrant, Violet, Jasmine, Rose, Ambergris",Confidential Collection
+Jasmin Exclusif,"A rich and sensual jasmine fragrance. It's a warm and spicy floral scent that is both elegant and seductive.","Spices, Bergamot, Egyptian Jasmine, Oud, Leather, Sandalwood",Exclusif Aouds
+Lemon Line,"A bright and zesty citrus fragrance. It's a simple, clean, and refreshing scent that is perfect for hot weather.","Sicilian Lemon, Orange, Lavender, Geranium, Amber, White Musk, Oakmoss",Main Line
+Musk of Flowers,"A soft and clean floral musk fragrance. It's a delicate and feminine scent that combines rose and jasmine with a powdery musk base.","Grapefruit, Fruity Notes, Rose, Jasmine, Violet, Orange Blossom, White Musk",Main Line
+Pearl,"A delicate and elegant fruity-floral fragrance. It's a soft and feminine scent with notes of rose, jasmine, and a hint of green apple.","Bergamot, Fig, Green Apple, Peach, Rose, Jasmine, Violet, Amber, White Musk",Confidential Collection
+Pink Prestigium,"A sweet and sparkling fruity-floral fragrance. It's a vibrant and joyful scent that combines blackcurrant and rose with a woody, vanilla base.","Blackcurrant, Bergamot, Saffron, Rose, Jasmine, Patchouli, Leather, Vanilla",Confidential Collection
+Precious Oud,"A refined and elegant oud fragrance. It's a smooth and leathery scent with a beautiful whiskey and tiramisu accord.","Bergamot, Oud, Leather, Whiskey, Tiramisu, Rose, Violet, Patchouli",Confidential Collection
+Purple Flowers,"A rich and sweet floral fragrance. It's a powerful and long-lasting scent that combines fig, rose, and patchouli with a warm, ambery base.","Fig, Nutmeg, Ginger, Mandarin, Rose, Patchouli, Cedarwood, Ambergris",Confidential Collection
+Red Tobacco,"An extremely powerful and long-lasting fragrance. It's a warm, spicy, and sweet scent with a prominent tobacco note, blended with cinnamon, oud, and vanilla.","Saffron, Cinnamon, Incense, Nutmeg, Pear, Oud, Tobacco, Amber, Vanilla",Main Line
+Roses & Chocolate,"A delicious and romantic gourmand fragrance. It's a beautiful blend of rich dark chocolate and fresh red roses.","Mandarin, Peach, Blackcurrant, Bergamot, Rose, Violet, Dark Chocolate, Vanilla",Main Line
+Roses Greedy,"A versatile and crowd-pleasing fruity-floral fragrance. It's a sweet and sparkling scent that combines rose with coconut, jasmine, and a clean musk base.","Peach, Blackcurrant, Mandarin, Coconut, Rose, Jasmine, Floral Notes, Vanilla",Main Line
+Roses Vanille,"A very popular and beloved gourmand fragrance. It's a sweet and intoxicating blend of fresh roses and creamy vanilla.","Lemon, Water Notes, Rose, Sugar, Vanilla, Cedarwood, White Musk",Main Line
+Royal Vanilla,"A rich and sophisticated vanilla fragrance. It's a warm and elegant scent that combines vanilla with amber, patchouli, and a hint of violet.","Citrus, Rose Water, Rhubarb Leaves, Violet, Caramel, Patchouli, Amber",Confidential Collection
+Sand Aoud,"A warm and spicy fragrance. It's a rich and inviting scent that combines blackcurrant and spices with a smooth oud and vanilla base.","Blackcurrant, Spices, Rose, Saffron, Patchouli, Oud, Vanilla, White Musk",Dark Desires Collection
+Sicily,"A bright and juicy citrus fragrance. It's a vibrant and uplifting scent that is perfect for summer, with a beautiful blend of citrus fruits and a hint of sweetness.","Mandarin, Grapefruit, Peach, Pineapple, Apple, Jasmine, Rose, Ylang-Ylang",Main Line
+Silver Blue,"A fresh, sweet, and aromatic fragrance. It's a modern and elegant scent that combines bergamot and caramel with a warm, ambery base.","Bergamot, Spices, Caramel, Labdanum, Amber, Patchouli, Oakmoss",Confidential Collection
+So Blue,"A fresh and fruity fragrance that evokes a tropical paradise. It's a vibrant and long-lasting scent with a beautiful rose and marine accord.","Lemon, Mandarin, Bergamot, Fruits, Marine Notes, Rose, Patchouli, Amber",Main Line
+Soleil d'Italie,"A bright and sunny citrus aromatic fragrance. It captures the feeling of the Italian coast with a blend of citrus, aquatic notes, and a woody base.","Citrus, Pink Pepper, Cardamom, Water Notes, Rose, Patchouli, Vetiver",Main Line
+Spicy Aoud,"A warm and exotic spicy fragrance. It's a rich and powerful scent that combines saffron and patchouli with a smooth, woody base.","Saffron, Orange, Bergamot, Patchouli, Floral Notes, Woody Notes, White Musk",Dark Desires Collection
+Tonka Cola,"A unique and playful gourmand fragrance. It's a sweet and spicy scent that recreates the aroma of cherry cola with notes of cinnamon, tonka bean, and vanilla.","Cherry, Cinnamon, Sicilian Lemon, Nutmeg, Cola, Indonesian Patchouli, Orange Blossom, Tonka Bean",Main Line
+Velvet Vanilla,"A sweet and creamy floral gourmand fragrance. It's a rich and powerful scent with a prominent tuberose note, blended with vanilla and white musk.","Mandarin, Angelica, Pear, Pink Pepper, Clove, Rose, Jasmine, Tuberose",Main Line
+Vetiver Patchouli,"A classic and earthy fragrance for lovers of vetiver and patchouli. It's a sophisticated scent that balances the freshness of citrus and pink pepper with its deep, earthy core.","Bergamot, Pink Pepper, Carrot, Jasmine, Vetiver, Patchouli, White Musk",Main Line
+Wave Musk,"A fresh and salty aquatic fragrance. It combines grapefruit and blackcurrant with sea salt and seaweed notes for a powerful and invigorating marine experience.","Grapefruit, Blackcurrant, Grass, Sea Salt, Seaweed, Orange Blossom, White Musk",Main Line
+Wild Cherry,"A sweet and alluring cherry fragrance. It combines a juicy cherry note with powdery heliotrope and orris, grounded by a warm vanilla and musk base.","Cherry, Bergamot, Lemon, Orris, Heliotrope, Jasmine, Patchouli, Vanilla",Main Line
+Wild Fruits,"A vibrant and zesty explosion of tropical fruits and citrus. It's a long-lasting fruity fragrance that is perfect for summer and high heat.","Kumquat, Lemon, Grapefruit, Blackcurrant, Peach, Apple, Violet, White Musk",Main Line
+Wild Leather,"A strong and animalic leather fragrance. It's a bold and powerful scent that combines a prominent leather note with bergamot, rose, and a woody, mossy base.","Sicilian Bergamot, Bulgarian Rose, Violet, Patchouli, Leather, Amber, Oakmoss",Main Line
+Wind Wood,"A fresh, green, and woody fragrance for men. It features a blend of citrus, pink pepper, and green notes over a classic base of vetiver, leather, and cedar.","Mandarin, Pink Pepper, Green Notes, Violet, Patchouli, Vetiver, Cedar, Oakmoss",Main Line`;
+
+        const fragrances = Papa.parse(fragranceDataCSV, { header: true }).data;
+
+        // --- QUIZ QUESTIONS ---
+        const questions = [
+            {
+                question: "What kind of scents are you naturally drawn to?",
+                options: [
+                    { text: "Fresh & Clean", keywords: ["citrus", "aquatic", "green", "lemon", "bergamot", "marine"] },
+                    { text: "Warm & Spicy", keywords: ["amber", "spicy", "oud", "tobacco", "incense", "cinnamon", "leather"] },
+                    { text: "Sweet & Fruity", keywords: ["sweet", "fruity", "vanilla", "caramel", "gourmand", "cherry", "peach", "coconut"] },
+                    { text: "Floral & Powdery", keywords: ["floral", "rose", "jasmine", "violet", "powdery", "elegant"] }
+                ]
+            },
+            {
+                question: "How long do you want your scent to last?",
+                options: [
+                    { text: "All day and all night", keywords: ["powerful", "long-lasting", "intense", "beast mode"] },
+                    { text: "A standard workday", keywords: ["versatile", "classic", "sophisticated"] },
+                    { text: "Something light and refreshing", keywords: ["fresh", "light", "uplifting", "zesty"] },
+                    { text: "It doesn't matter, I just want it to smell amazing!", keywords: [] }
+                ]
+            },
+            {
+                question: "Which of these notes sounds most appealing?",
+                options: [
+                    { text: "Juicy Fruits (Lemon, Cherry, Blackcurrant)", keywords: ["lemon", "cherry", "blackcurrant", "fruity", "citrus"] },
+                    { text: "Rich Spices (Cinnamon, Saffron, Clove)", keywords: ["cinnamon", "saffron", "clove", "spices"] },
+                    { text: "Creamy Vanilla & Chocolate", keywords: ["vanilla", "chocolate", "caramel", "gourmand"] },
+                    { text: "Exotic Oud & Leather", keywords: ["oud", "leather", "woody", "animalic"] }
+                ]
+            },
+            {
+                question: "What's the primary occasion for this fragrance?",
+                options: [
+                    { text: "A special evening out", keywords: ["seductive", "opulent", "evening wear", "luxurious"] },
+                    { text: "Daily wear, for the office or errands", keywords: ["versatile", "classic", "clean", "uplifting"] },
+                    { text: "A sunny vacation or hot weather", keywords: ["summer", "tropical", "beach", "zesty"] },
+                    { text: "Cozying up at home", keywords: ["cozy", "warm", "addictive", "gourmand"] }
+                ]
+            },
+            {
+                question: "What kind of personality do you want to project?",
+                options: [
+                    { text: "Confident & Bold", keywords: ["powerful", "strong", "bold", "beast"] },
+                    { text: "Elegant & Sophisticated", keywords: ["elegant", "sophisticated", "refined", "timeless"] },
+                    { text: "Playful & Energetic", keywords: ["playful", "vibrant", "zesty", "joyful"] },
+                    { text: "Mysterious & Seductive", keywords: ["mysterious", "seductive", "intoxicating", "sensual"] }
+                ]
+            }
+        ];
+
+        let currentQuestionIndex = 0;
+        let userAnswers = [];
+
+        const questionTitleEl = document.getElementById('question-title');
+        const optionsContainerEl = document.getElementById('options-container');
+        const quizContainerEl = document.getElementById('quiz-container');
+        const resultsContainerEl = document.getElementById('results-container');
+        const resultsEl = document.getElementById('results');
+        const progressBarEl = document.getElementById('progress-bar');
+
+        // --- FUNCTIONS ---
+
+        /**
+         * Starts the quiz or displays the next question.
+         */
+        function displayQuestion() {
+            if (currentQuestionIndex < questions.length) {
+                const currentQuestion = questions[currentQuestionIndex];
+                questionTitleEl.textContent = currentQuestion.question;
+                optionsContainerEl.innerHTML = '';
+
+                currentQuestion.options.forEach(option => {
+                    const button = document.createElement('button');
+                    button.className = "w-full text-left p-4 border rounded-lg hover:bg-indigo-50 hover:border-indigo-500 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500";
+                    button.textContent = option.text;
+                    button.onclick = () => selectOption(option.keywords);
+                    optionsContainerEl.appendChild(button);
+                });
+                updateProgressBar();
+            } else {
+                showResults();
+            }
+        }
+
+        /**
+         * Handles the user's selection, stores it, and moves to the next question.
+         * @param {string[]} keywords - The keywords associated with the selected option.
+         */
+        function selectOption(keywords) {
+            userAnswers.push(keywords);
+            currentQuestionIndex++;
+            displayQuestion();
+        }
+        
+        /**
+         * Updates the progress bar based on the current question index.
+         */
+        function updateProgressBar() {
+            const progress = (currentQuestionIndex / questions.length) * 100;
+            progressBarEl.style.width = `${progress}%`;
+        }
+
+        /**
+         * Calculates scores and displays the top 3 fragrance recommendations.
+         */
+        function showResults() {
+            const scores = {};
+
+            fragrances.forEach(fragrance => {
+                scores[fragrance['Fragrance Name']] = 0;
+                const description = (fragrance.Description || '').toLowerCase();
+                const notes = (fragrance['Key Scent Notes'] || '').toLowerCase();
+                const combinedText = description + ' ' + notes;
+
+                userAnswers.forEach(answerKeywords => {
+                    answerKeywords.forEach(keyword => {
+                        if (combinedText.includes(keyword)) {
+                            scores[fragrance['Fragrance Name']]++;
+                        }
+                    });
+                });
+            });
+
+            const sortedFragrances = Object.keys(scores)
+                .map(name => ({ name, score: scores[name] }))
+                .filter(f => f.score > 0)
+                .sort((a, b) => b.score - a.score);
+
+            const top3 = sortedFragrances.slice(0, 3);
+            
+            // Ensure we have at least one result, even if scores are 0
+            if (top3.length === 0) {
+                 const fallbackFragrances = ["Cedrat Boise", "Roses Vanille", "Instant Crush"];
+                 fallbackFragrances.forEach(name => {
+                     const frag = fragrances.find(f => f['Fragrance Name'] === name);
+                     if (frag) top3.push({ name: frag['Fragrance Name'], score: 0 });
+                 });
+            }
+
+
+            resultsEl.innerHTML = ''; // Clear previous results
+            top3.forEach(frag => {
+                const fragranceDetails = fragrances.find(f => f['Fragrance Name'] === frag.name);
+                if (fragranceDetails) {
+                    const resultCard = `
+                        <div class="result-card bg-gray-50 border border-gray-200 rounded-xl p-6">
+                            <h3 class="text-2xl font-bold text-indigo-700">${fragranceDetails['Fragrance Name']}</h3>
+                            <p class="text-sm text-gray-500 mb-3">${fragranceDetails['Collection Name']}</p>
+                            <p class="text-gray-700 mb-4">${fragranceDetails.Description}</p>
+                            <p class="text-sm text-gray-600"><span class="font-semibold">Key Notes:</span> ${fragranceDetails['Key Scent Notes']}</p>
+                        </div>
+                    `;
+                    resultsEl.innerHTML += resultCard;
+                }
+            });
+            
+            // Fade out quiz and fade in results
+            quizContainerEl.style.opacity = '0';
+            setTimeout(() => {
+                quizContainerEl.classList.add('hidden');
+                resultsContainerEl.classList.remove('hidden');
+                resultsContainerEl.style.opacity = '0';
+                setTimeout(() => {
+                    resultsContainerEl.style.opacity = '1';
+                }, 50);
+            }, 500);
+        }
+
+        /**
+         * Resets the quiz to its initial state.
+         */
+        function restartQuiz() {
+            currentQuestionIndex = 0;
+            userAnswers = [];
+            
+            resultsContainerEl.style.opacity = '0';
+            setTimeout(() => {
+                resultsContainerEl.classList.add('hidden');
+                quizContainerEl.classList.remove('hidden');
+                quizContainerEl.style.opacity = '0';
+                displayQuestion(); // This also resets the progress bar
+                setTimeout(() => {
+                    quizContainerEl.style.opacity = '1';
+                }, 50);
+            }, 500);
+        }
+        
+        // --- INITIALIZATION ---
+        // Use PapaParse to handle CSV parsing.
+        // This is a placeholder for the actual PapaParse library, which should be included.
+        // Since we can't include external scripts directly in this environment, 
+        // we'll simulate its functionality.
+        const Papa = {
+            parse: (csv, config) => {
+                const lines = csv.trim().split('\n');
+                const header = lines[0].split(',').map(h => h.trim());
+                const data = lines.slice(1).map(line => {
+                    // This is a simplified CSV parser and may not handle all edge cases (e.g., commas in quotes).
+                    const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                    let obj = {};
+                    header.forEach((h, i) => {
+                        obj[h] = (values[i] || '').replace(/"/g, '').trim();
+                    });
+                    return obj;
+                });
+                return { data };
+            }
+        };
+
+        // Start the quiz when the page loads.
+        document.addEventListener('DOMContentLoaded', displayQuestion);
+
+    </script>
+</body>
+</html>
