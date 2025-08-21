@@ -10,7 +10,7 @@
         body {
             font-family: 'Inter', sans-serif;
         }
-        .quiz-container {
+        .quiz-container, .results-container {
             transition: opacity 0.5s ease-in-out;
         }
         .result-card {
@@ -23,13 +23,30 @@
         .progress-bar-inner {
             transition: width 0.5s ease-in-out;
         }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800 flex items-center justify-center min-h-screen p-4">
 
     <div class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-xl p-6 md:p-8">
         
-        <div id="quiz-container" class="quiz-container">
+        <div id="loading-container" class="flex flex-col items-center justify-center py-12">
+            <div class="loader"></div>
+            <p class="mt-4 text-gray-500">Finding fragrances...</p>
+        </div>
+
+        <div id="quiz-container" class="quiz-container hidden">
             <h1 class="text-3xl font-bold text-center mb-2 text-gray-900">Find Your Perfect Mancera</h1>
             <p class="text-center text-gray-500 mb-6">Answer 5 questions to discover your signature scent.</p>
 
@@ -62,9 +79,19 @@
     </div>
 
     <script>
-        // --- DATABASE ---
-        // The CSV data is parsed and stored here as a JavaScript array of objects.
-        const fragranceDataCSV = `Fragrance Name,Description,Key Scent Notes,Collection Name
+        // --- API SIMULATION & DATABASE ---
+        
+        /**
+         * Simulates fetching fragrance data from an API.
+         * @returns {Promise<Object[]>} A promise that resolves with the parsed fragrance data.
+         */
+        async function fetchFragranceData() {
+            console.log("Fetching fragrance data...");
+            // In a real app, this would be a fetch() call to a URL.
+            // Here, we simulate a network delay with setTimeout.
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    const fragranceDataCSV = `Fragrance Name,Description,Key Scent Notes,Collection Name
 Amber & Roses,"A classic and opulent combination of rich amber and sensual rose. This is a warm, elegant, and timeless floral-amber scent.","Sicilian Lemon, Rose, Indian Jasmine, Amber, Labdanum, White Musk",Main Line
 Amber Fever,"A sweet and intoxicating amber fragrance with prominent notes of caramel, whiskey, and rose. It's a rich, boozy, and seductive scent perfect for evening wear.","Caramel, Whiskey, Hazelnut, Rose Petals, Amber, Teak Wood, White Musk",Confidential Collection
 Aoud Absolue Precieux,"A highly concentrated and luxurious oud essence. This is a potent, pure expression of woody and leathery Cambodian oud for the true connoisseur.","Bergamot, Clove, Saffron, Rose, Geranium, Cambodian Oud, Labdanum",Precieux Aouds
@@ -125,9 +152,36 @@ Wild Fruits,"A vibrant and zesty explosion of tropical fruits and citrus. It's a
 Wild Leather,"A strong and animalic leather fragrance. It's a bold and powerful scent that combines a prominent leather note with bergamot, rose, and a woody, mossy base.","Sicilian Bergamot, Bulgarian Rose, Violet, Patchouli, Leather, Amber, Oakmoss",Main Line
 Wind Wood,"A fresh, green, and woody fragrance for men. It features a blend of citrus, pink pepper, and green notes over a classic base of vetiver, leather, and cedar.","Mandarin, Pink Pepper, Green Notes, Violet, Patchouli, Vetiver, Cedar, Oakmoss",Main Line`;
 
-        const fragrances = Papa.parse(fragranceDataCSV, { header: true }).data;
+                    // This is a simplified CSV parser and may not handle all edge cases (e.g., commas in quotes).
+                    const lines = fragranceDataCSV.trim().split('\n');
+                    const header = lines[0].split(',').map(h => h.trim());
+                    const data = lines.slice(1).map(line => {
+                        const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                        let obj = {};
+                        header.forEach((h, i) => {
+                            obj[h] = (values[i] || '').replace(/"/g, '').trim();
+                        });
+                        return obj;
+                    });
+                    console.log("Data fetched and parsed.");
+                    resolve(data);
+                }, 800); // 800ms delay
+            });
+        }
+        
+        // --- QUIZ STATE & ELEMENTS ---
+        let fragrances = [];
+        let currentQuestionIndex = 0;
+        let userAnswers = [];
 
-        // --- QUIZ QUESTIONS ---
+        const loadingContainerEl = document.getElementById('loading-container');
+        const questionTitleEl = document.getElementById('question-title');
+        const optionsContainerEl = document.getElementById('options-container');
+        const quizContainerEl = document.getElementById('quiz-container');
+        const resultsContainerEl = document.getElementById('results-container');
+        const resultsEl = document.getElementById('results');
+        const progressBarEl = document.getElementById('progress-bar');
+        
         const questions = [
             {
                 question: "What kind of scents are you naturally drawn to?",
@@ -176,21 +230,8 @@ Wind Wood,"A fresh, green, and woody fragrance for men. It features a blend of c
             }
         ];
 
-        let currentQuestionIndex = 0;
-        let userAnswers = [];
-
-        const questionTitleEl = document.getElementById('question-title');
-        const optionsContainerEl = document.getElementById('options-container');
-        const quizContainerEl = document.getElementById('quiz-container');
-        const resultsContainerEl = document.getElementById('results-container');
-        const resultsEl = document.getElementById('results');
-        const progressBarEl = document.getElementById('progress-bar');
-
         // --- FUNCTIONS ---
 
-        /**
-         * Starts the quiz or displays the next question.
-         */
         function displayQuestion() {
             if (currentQuestionIndex < questions.length) {
                 const currentQuestion = questions[currentQuestionIndex];
@@ -210,27 +251,17 @@ Wind Wood,"A fresh, green, and woody fragrance for men. It features a blend of c
             }
         }
 
-        /**
-         * Handles the user's selection, stores it, and moves to the next question.
-         * @param {string[]} keywords - The keywords associated with the selected option.
-         */
         function selectOption(keywords) {
             userAnswers.push(keywords);
             currentQuestionIndex++;
             displayQuestion();
         }
         
-        /**
-         * Updates the progress bar based on the current question index.
-         */
         function updateProgressBar() {
             const progress = (currentQuestionIndex / questions.length) * 100;
             progressBarEl.style.width = `${progress}%`;
         }
 
-        /**
-         * Calculates scores and displays the top 3 fragrance recommendations.
-         */
         function showResults() {
             const scores = {};
 
@@ -254,19 +285,14 @@ Wind Wood,"A fresh, green, and woody fragrance for men. It features a blend of c
                 .filter(f => f.score > 0)
                 .sort((a, b) => b.score - a.score);
 
-            const top3 = sortedFragrances.slice(0, 3);
+            let top3 = sortedFragrances.slice(0, 3);
             
-            // Ensure we have at least one result, even if scores are 0
             if (top3.length === 0) {
                  const fallbackFragrances = ["Cedrat Boise", "Roses Vanille", "Instant Crush"];
-                 fallbackFragrances.forEach(name => {
-                     const frag = fragrances.find(f => f['Fragrance Name'] === name);
-                     if (frag) top3.push({ name: frag['Fragrance Name'], score: 0 });
-                 });
+                 top3 = fallbackFragrances.map(name => ({ name: name, score: 0 }));
             }
 
-
-            resultsEl.innerHTML = ''; // Clear previous results
+            resultsEl.innerHTML = '';
             top3.forEach(frag => {
                 const fragranceDetails = fragrances.find(f => f['Fragrance Name'] === frag.name);
                 if (fragranceDetails) {
@@ -282,7 +308,6 @@ Wind Wood,"A fresh, green, and woody fragrance for men. It features a blend of c
                 }
             });
             
-            // Fade out quiz and fade in results
             quizContainerEl.style.opacity = '0';
             setTimeout(() => {
                 quizContainerEl.classList.add('hidden');
@@ -294,9 +319,6 @@ Wind Wood,"A fresh, green, and woody fragrance for men. It features a blend of c
             }, 500);
         }
 
-        /**
-         * Resets the quiz to its initial state.
-         */
         function restartQuiz() {
             currentQuestionIndex = 0;
             userAnswers = [];
@@ -306,7 +328,7 @@ Wind Wood,"A fresh, green, and woody fragrance for men. It features a blend of c
                 resultsContainerEl.classList.add('hidden');
                 quizContainerEl.classList.remove('hidden');
                 quizContainerEl.style.opacity = '0';
-                displayQuestion(); // This also resets the progress bar
+                displayQuestion();
                 setTimeout(() => {
                     quizContainerEl.style.opacity = '1';
                 }, 50);
@@ -314,29 +336,14 @@ Wind Wood,"A fresh, green, and woody fragrance for men. It features a blend of c
         }
         
         // --- INITIALIZATION ---
-        // Use PapaParse to handle CSV parsing.
-        // This is a placeholder for the actual PapaParse library, which should be included.
-        // Since we can't include external scripts directly in this environment, 
-        // we'll simulate its functionality.
-        const Papa = {
-            parse: (csv, config) => {
-                const lines = csv.trim().split('\n');
-                const header = lines[0].split(',').map(h => h.trim());
-                const data = lines.slice(1).map(line => {
-                    // This is a simplified CSV parser and may not handle all edge cases (e.g., commas in quotes).
-                    const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-                    let obj = {};
-                    header.forEach((h, i) => {
-                        obj[h] = (values[i] || '').replace(/"/g, '').trim();
-                    });
-                    return obj;
-                });
-                return { data };
-            }
-        };
+        async function initializeQuiz() {
+            fragrances = await fetchFragranceData();
+            loadingContainerEl.classList.add('hidden');
+            quizContainerEl.classList.remove('hidden');
+            displayQuestion();
+        }
 
-        // Start the quiz when the page loads.
-        document.addEventListener('DOMContentLoaded', displayQuestion);
+        document.addEventListener('DOMContentLoaded', initializeQuiz);
 
     </script>
 </body>
